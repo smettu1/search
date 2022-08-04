@@ -1,0 +1,91 @@
+#Copyright 2021 DevRev Inc.
+
+version: "3.4"
+
+services:
+  redis:
+    image: redis:latest
+
+  mongo:
+    image: mongo:latest
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: Secret
+
+  backend:
+    build: backend
+    command: ["flask", "run", "--host=0.0.0.0", "--port", "5001"]
+    volumes:
+      - ./backend:/backend
+    environment:
+      - FLASK_ENV=development
+      - FLASK_APP=app.py
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    ports:
+      - "5000:5000"
+    depends_on:
+      - mongo
+      - redis
+
+  worker:
+    build: backend
+    command: celery -A celery_backend worker --loglevel=info --pool=gevent -l info -c 1000
+    volumes:
+      - ./backend:/backend
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - mongo
+      - redis
+
+  react-app:
+    build:
+      context: frontend/react-app
+      network: host
+    command: ["npm", "start"]
+    volumes:
+      - ./frontend/react-app:/react-app
+      - node-modules-react:/react-app/node_modules
+    environment:
+      - NODE_ENV=development
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+  vue-app:
+    build:
+      context: frontend/vue-app
+      network: host
+    command: ["npm", "run", "serve"]
+    volumes:
+      - ./frontend/vue-app:/vue-app
+      - node-modules-vue:/vue-app/node_modules
+    environment:
+      - NODE_ENV=development
+    ports:
+      - "8080:8080"
+    depends_on:
+      - backend
+
+  pure-js-app:
+    build:
+      context: frontend/pure-js-app
+      network: host
+    command: ["npm", "start"]
+    volumes:
+      - ./frontend/pure-js-app:/pure-js-app
+      - node-modules-pure-js:/pure-js-app/node_modules
+    environment:
+      - NODE_ENV=development
+    ports:
+      - "3001:3001"
+    depends_on:
+      - backend
+
+volumes:
+  node-modules-react:
+  node-modules-vue:
+  node-modules-pure-js:

@@ -1,0 +1,7 @@
+Flask
+pymongo
+flask-cors
+nltk
+redis
+celery
+gevent
